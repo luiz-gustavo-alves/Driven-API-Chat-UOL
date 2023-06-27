@@ -1,0 +1,21 @@
+{
+  "name": "projeto13-batepapo-uol-api",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./src/app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node ./src/app.js",
+    "dev": "nodemon ./src/app.js"
+  },
+  "keywords": [],
+  "author": "Luiz Gustavo",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "nodemon": "^2.0.22"
+  }
+}
