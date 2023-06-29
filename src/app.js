@@ -29,18 +29,18 @@ app.post("/participants", async (req, res) => {
 
         const { name } = req.body;
 
-        if (!name) {
+        if ((!name) || (typeof name !== "string")) {
             return res.sendStatus(422);
         }
 
-        const userDB = await db.collection("users").findOne({name: name});
+        const participantDB = await db.collection("participants").findOne({name: name});
 
-        /* Check if user exists in database */
-        if (userDB) {
+        /* Check if participant exists in database */
+        if (participantDB) {
             return res.sendStatus(409);
         }
 
-        await db.collection("users").insertOne({
+        await db.collection("participants").insertOne({
             name: name,
             lastStatus: Date.now()
         });
@@ -64,8 +64,8 @@ app.get("/participants", async (req, res) => {
 
     try {
 
-        const usersDB = await db.collection("users").find().toArray();
-        res.send(usersDB);
+        const participantsDB = await db.collection("participants").find().toArray();
+        res.send(participantsDB);
 
     } catch (err) {
         res.status(500).send(err.message);
@@ -79,7 +79,7 @@ app.post("/messages", async (req, res) => {
         const { to, text, type } = req.body;
         const { user } = req.headers;
 
-        if (!to || !text || !type) {
+        if ((!to || !text || !type) || (typeof to !== "string" || typeof text !== "string" || typeof type !== "string")) {
             return res.sendStatus(422);
         }
 
@@ -87,10 +87,10 @@ app.post("/messages", async (req, res) => {
             return res.sendStatus(422);
         }
 
-        const userDB = await db.collection("users").findOne({name: user});
+        const participantDB = await db.collection("participants").findOne({name: user});
 
-        /* Check if user exists in database */
-        if (!userDB) {
+        /* Check if participant exists in database */
+        if (!participantDB) {
             return res.sendStatus(422);
         }
 
@@ -158,7 +158,7 @@ app.post("/status", async (req, res) => {
             return res.send(404);
         }
 
-        const userDB = await db.collection("users").findOneAndUpdate(
+        const userDB = await db.collection("participants").findOneAndUpdate(
         { name: user }, 
         { $set: 
             { lastStatus: Date.now() }
@@ -181,14 +181,14 @@ setInterval(async () => {
         
         const timeLimit = 10000;
 
-        const inactiveUsers = await db.collection("users").find(
+        const inactiveparticipants = await db.collection("participants").find(
         { lastStatus: 
             { $lt: Date.now() - timeLimit }
         }).toArray();
             
-        inactiveUsers.forEach(async (user) => {
+        inactiveparticipants.forEach(async (user) => {
 
-            await db.collection("users").deleteOne({name: user.name});
+            await db.collection("participants").deleteOne({name: user.name});
 
             await db.collection("messages").insertOne({
                 from: user.name,
