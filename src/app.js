@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import dayjs from "dayjs";
 import dotenv from 'dotenv';
 
@@ -167,6 +167,78 @@ app.post("/status", async (req, res) => {
         if (!userDB.value) {
             return res.sendStatus(404);
         }
+
+        res.sendStatus(200);
+
+    } catch (err) {
+        res.status(500).send(err.message);
+    }
+})
+
+app.delete("/messages/:id", async (req, res) => {
+
+    try {
+
+        const { user } = req.headers;
+        const { id } = req.params;
+
+        const requestMessage = await db.collection("messages").findOne({ _id: new ObjectId(id) });
+
+        if (!requestMessage) {
+            return res.sendStatus(404);
+        }
+
+        if (requestMessage.from !== user) {
+            return res.sendStatus(401);
+        }
+
+        await db.collection("messages").deleteOne({ _id: new ObjectId(id) });
+        res.sendStatus(200);
+
+    } catch (err) {
+        res.status(500).send(err.message);
+    }
+})
+
+app.put("/messages/:id", async (req, res) => {
+
+    try {
+
+        const { to, text, type } = req.body;
+        const { user } = req.headers;
+        const { id } = req.params;
+
+        if ((!to || !text || !type) || (typeof to !== "string" || typeof text !== "string" || typeof type !== "string")) {
+            return res.sendStatus(422);
+        }
+
+        if (type !== "message" && type !== "private_message") {
+            return res.sendStatus(422);
+        }
+
+        const participantDB = await db.collection("participants").findOne({name: user});
+
+        /* Check if participant exists in database */
+        if (!participantDB) {
+            return res.sendStatus(422);
+        }
+
+        const requestMessage = await db.collection("messages").findOne({ _id: new ObjectId(id) });
+
+        if (!requestMessage) {
+            return res.sendStatus(404);
+        }
+
+        if (requestMessage.from !== user) {
+            return res.sendStatus(401);
+        }
+
+        await db.collection("messages").findOneAndUpdate(
+            { _id: new ObjectId(id) },
+            { $set:
+                { text: text }
+            }
+        );
 
         res.sendStatus(200);
 
