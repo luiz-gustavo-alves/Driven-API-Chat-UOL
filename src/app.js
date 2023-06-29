@@ -1,4 +1,4 @@
-import express, {json} from "express";
+import express from "express";
 import cors from "cors";
 import { MongoClient } from "mongodb";
 import dayjs from "dayjs";
@@ -6,16 +6,22 @@ import dotenv from 'dotenv';
 
 dotenv.config()
 
-const mongoClient = new MongoClient(process.env.DATABASE_URL);
-let db;
-
-mongoClient.connect()
-.then(() => db = mongoClient.db())
-.catch((err) => console.log(err.message));
-
 const app = express();
-app.use(json());
+app.use(express.json());
 app.use(cors());
+
+const mongoClient = new MongoClient(process.env.DATABASE_URL);
+async () => {
+
+    try {
+        await mongoClient.connect();
+    }
+    catch (err) {
+        console.log(err.message);
+    }
+}
+
+const db = mongoClient.db();
 
 app.post("/participants", async (req, res) => {
 
@@ -78,7 +84,6 @@ app.post("/messages", async (req, res) => {
         }
 
         if (type !== "message" && type !== "private_message") {
-            console.log("ok");
             return res.sendStatus(422);
         }
 
@@ -153,7 +158,11 @@ app.post("/status", async (req, res) => {
             return res.send(404);
         }
 
-        const userDB = await db.collection("users").findOneAndUpdate({name: user}, {$set:{lastStatus: Date.now()}});
+        const userDB = await db.collection("users").findOneAndUpdate(
+        { name: user }, 
+        { $set: 
+            { lastStatus: Date.now() }
+        });
 
         if (!userDB.value) {
             return res.sendStatus(404);
@@ -165,5 +174,36 @@ app.post("/status", async (req, res) => {
         res.status(500).send(err.message);
     }
 })
+
+setInterval(async () => {
+
+    try {
+        
+        const timeLimit = 10000;
+
+        const inactiveUsers = await db.collection("users").find(
+        { lastStatus: 
+            { $lt: Date.now() - timeLimit }
+        }).toArray();
+            
+        inactiveUsers.forEach(async (user) => {
+
+            await db.collection("users").deleteOne({name: user.name});
+
+            await db.collection("messages").insertOne({
+                from: user.name,
+                to: 'Todos',
+                text: 'sai da sala...',
+                type: 'status',
+                time: dayjs().format('HH:mm:ss')
+            });
+        });
+
+    }
+    catch (err) {
+        console.log(err.message);
+    }
+
+}, 15000)
 
 app.listen(process.env.PORT);
