@@ -17,73 +17,153 @@ const app = express();
 app.use(json());
 app.use(cors());
 
-app.post("/participants", (req, res) => {
+app.post("/participants", async (req, res) => {
 
-    const { name } = req.body;
+    try {
 
-    db.collection("users").insertOne({
-        name: name,
-        lastStatus: Date.now()
-    })
-    .then(() => {
+        const { name } = req.body;
 
-        db.collection("messages").insertOne({
+        if (!name) {
+            return res.sendStatus(422);
+        }
+
+        const userDB = await db.collection("users").findOne({name: name});
+
+        /* Check if user exists in database */
+        if (userDB) {
+            return res.sendStatus(409);
+        }
+
+        await db.collection("users").insertOne({
+            name: name,
+            lastStatus: Date.now()
+        });
+    
+        await db.collection("messages").insertOne({
             from: name,
             to: 'Todos',
             text: 'entra na sala...',
             type: 'status',
             time: dayjs().format('HH:mm:ss')
-        })
-        .then(() => res.send(201))
-        .catch((err) => res.status(500).send(err.message));
-    })
-    .catch((err) => res.status(500).send(err.message));
+        });
+
+        res.sendStatus(201);
+
+    } catch (err) {
+        res.status(500).send(err.message);
+    }
 })
 
-app.get("/participants", (req, res) => {
+app.get("/participants", async (req, res) => {
 
-    db.collection("users").find().toArray()
-        .then((users) => res.status(200).send(users))
-        .catch((err) => res.status(500).send(err));
+    try {
+
+        const usersDB = await db.collection("users").find().toArray();
+        res.send(usersDB);
+
+    } catch (err) {
+        res.status(500).send(err.message);
+    }
 })
 
-app.post("/messages", (req, res) => {
+app.post("/messages", async (req, res) => {
 
-    const { to, text, type } = req.body;
-    const { user } = req.headers;
+    try {
 
-    db.collection("messages").insertOne({
-        from: user,
-        to: to,
-		text: text,
-		type: type,
-		time: dayjs().format('HH:mm:ss')
-    })
-    .then(() => res.send(201))
-    .catch((err) => res.status(500).send(err.message));
+        const { to, text, type } = req.body;
+        const { user } = req.headers;
+
+        if (!to || !text || !type) {
+            return res.sendStatus(422);
+        }
+
+        if (type !== "message" && type !== "private_message") {
+            console.log("ok");
+            return res.sendStatus(422);
+        }
+
+        const userDB = await db.collection("users").findOne({name: user});
+
+        /* Check if user exists in database */
+        if (!userDB) {
+            return res.sendStatus(422);
+        }
+
+        await db.collection("messages").insertOne({
+            from: user,
+            to: to,
+            text: text,
+            type: type,
+            time: dayjs().format('HH:mm:ss')
+        });
+
+        res.sendStatus(201);
+
+    } catch (err) {
+        res.status(500).send(err.message);
+    }
 })
 
-app.get("/messages", (req, res) => {
+app.get("/messages", async (req, res) => {
 
-    const { user } = req.headers;
-    let { limit } = req.query;
+    try {
 
-    limit = Number(limit)
+        const { user } = req.headers;
+        let { limit } = req.query;
 
-    db.collection("messages").find().limit(limit).toArray()
-        .then((users) => {
+        let messagesDB;
+        
+        /* No query param limit given => get all messages from database */
+        if (!limit) {
+            messagesDB = await db.collection("messages").find().toArray();
 
-            const requestMessages = [];
-            users.forEach((message) => {
+        } else {
 
-                if (message.to === "Todos" || message.to === user || message.from === user) {
-                    requestMessages.push({...message});
-                }
-            });
+            limit = Number(limit);
 
-            res.status(200).send(requestMessages);
-        })
-        .catch((err) => res.status(500).send(err.messages));
+            if (limit <= 0 || !limit) {
+                return res.sendStatus(422);
+            }
+
+            messagesDB = await db.collection("messages").find().limit(limit).toArray();
+        }
+
+        const requestMessages = [];
+        messagesDB.forEach((message) => {
+
+            if (message.to === "Todos" || message.to === user || message.from === user) {
+                requestMessages.push({...message});
+            }
+        });
+
+        res.status(200).send(requestMessages);
+
+    } catch (err) {
+        res.status(500).send(err.message);
+    }
+})
+
+app.post("/status", async (req, res) => {
+
+    try {
+
+        const { user } = req.headers;
+
+        if (!user) {
+            return res.send(404);
+        }
+
+        const userDB = await db.collection("users").findOneAndUpdate({name: user}, {$set:{lastStatus: Date.now()}});
+
+        if (!userDB.value) {
+            return res.sendStatus(404);
+        }
+
+        res.sendStatus(200);
+
+    } catch (err) {
+        res.status(500).send(err.message);
+    }
 })
 
 app.listen(process.env.PORT);
