@@ -3,6 +3,7 @@ import cors from "cors";
 import { MongoClient, ObjectId } from "mongodb";
 import dayjs from "dayjs";
 import joi from "joi";
+import { stripHtml } from "string-strip-html";
 import dotenv from "dotenv";
 
 dotenv.config()
@@ -41,7 +42,7 @@ app.post("/participants", async (req, res) => {
 
     try {
 
-        const { name } = req.body;
+        const name = stripHtml(req.body.name).result;
 
         const validation = participantSchema.validate({ name: name });
 
@@ -79,7 +80,6 @@ app.post("/participants", async (req, res) => {
 app.get("/participants", async (req, res) => {
 
     try {
-
         const participantsDB = await db.collection("participants").find().toArray();
         res.send(participantsDB);
 
@@ -92,16 +92,16 @@ app.post("/messages", async (req, res) => {
 
     try {
 
-        const { to, text, type } = req.body;
+        const to = stripHtml(req.body.to).result;
+        const text = (stripHtml(req.body.text).result).trim();
+        const type = stripHtml(req.body.type).result;
+
         const { user } = req.headers;
 
-        const message = {
-            to: to,
-            text: text,
-            type: type
-        };
-
-        const validation = messageSchema.validate(message, { abortEarly: false });
+        const validation = messageSchema.validate(
+            { to: to, text: text, type: type }, 
+            { abortEarly: false }
+        );
 
         if (validation.error) {
             return res.sendStatus(422);
@@ -175,7 +175,7 @@ app.post("/status", async (req, res) => {
         const { user } = req.headers;
 
         if (!user) {
-            return res.sendStatus(404);
+            return res.sendStatus(422);
         }
 
         const userDB = await db.collection("participants").findOneAndUpdate(
@@ -224,17 +224,17 @@ app.put("/messages/:id", async (req, res) => {
 
     try {
 
-        const { to, text, type } = req.body;
+        const to = stripHtml(req.body.to).result;
+        const text = (stripHtml(req.body.text).result).trim();
+        const type = stripHtml(req.body.type).result;
+
         const { user } = req.headers;
         const { id } = req.params;
 
-        const message = {
-            to: to,
-            text: text,
-            type: type
-        };
-
-        const validation = messageSchema.validate(message, { abortEarly: false });
+        const validation = messageSchema.validate(
+            { to: to, text: text, type: type }, 
+            { abortEarly: false }
+        );
 
         if (validation.error) {
             return res.sendStatus(422);
@@ -281,7 +281,7 @@ setInterval(async () => {
         { lastStatus: 
             { $lt: Date.now() - timeLimit }
         }).toArray();
-            
+
         inactiveparticipants.forEach(async (user) => {
 
             await db.collection("participants").deleteOne({ name: user.name });
