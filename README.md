@@ -25,7 +25,7 @@ messageSchema = {
 ### Remoção Automática de Usuários: 
 A cada 15 segundos é removido da lista de participantes os participantes que possuam um lastStatus de mais de 10 segundos atrás.
 
-## Métodos HTTP ⚙️
+## Rotas ⚙️
 
 ### /participants
 ![](https://place-hold.it/80x20/26baec/ffffff?text=GET&fontsize=16) Retorna lista de participantes.<br>
